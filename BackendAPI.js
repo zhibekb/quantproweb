@@ -1,21 +1,22 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 const BackendAPI = {
 
     getSymbols : function() {
-      return fetch("http://localhost:5000/symbols").then(res => res.json());
+      return fetch(API_URL + "/symbols").then(res => res.json());
     },
 
     getTickerLastClose : function(ticker) {
-      return fetch("http://localhost:5000/symbol/"+ticker).then(res => res.json());
+      return fetch(API_URL + "/symbol/"+ticker).then(res => res.json());
     },
 
     getTickerVolatility : function(ticker) {
-      return fetch("http://localhost:5000/symbol/volatility/"+ticker).then(res => res.json());
+      return fetch(API_URL + "/symbol/volatility/"+ticker).then(res => res.json());
     },
 
     calculateBlackScholesOption: function(data) {
       return fetch(
-        "http://localhost:5000/option/calculator/black-scholes",
+        API_URL + "/option/calculator/black-scholes",
         {
           method: "POST",
           headers: {"Content-Type": "application/json"},
