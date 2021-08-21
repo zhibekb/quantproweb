@@ -4,13 +4,11 @@ import styles from '../styles/Home.module.css'
 
 import OptionPriceCalculator from "../components/CalculatorForm"
 
-import { MuiPickersUtilsProvider } from '@material-ui/pickers';
 
-import DateFnsUtils from '@date-io/date-fns';
+import Container from '@material-ui/core/Container'
 
 export default function Home() {
   return (
-    <MuiPickersUtilsProvider utils={DateFnsUtils}>
     <div className={styles.container}>
       <Head>
         <title>QuantPro Option Price Calculator</title>
@@ -29,12 +27,13 @@ export default function Home() {
         </div>
       </main>
 
+      <br/>
+
       <footer className={styles.footer}>
         <div align="center">
           Created By <strong>Zhibek Bakhytzhanova</strong>
         </div>
       </footer>
     </div>
-    </MuiPickersUtilsProvider>
   )
 }

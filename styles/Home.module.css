@@ -1,11 +1,10 @@
 .container {
   min-height: 100vh;
-  padding: 0 0.5rem;
+  padding: 0 0.2rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100vh;
 }
 
 .main {
@@ -74,7 +73,7 @@
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  max-width: 800px;
+  max-width: 900px;
   margin-top: 3rem;
 }
 
