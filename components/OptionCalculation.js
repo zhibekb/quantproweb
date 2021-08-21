@@ -13,10 +13,13 @@ import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
 import Paper from '@material-ui/core/Paper';
 
+import { XAxis, YAxis, Legend, Tooltip, Line, LineChart, CartesianGrid, ResponsiveContainer } from 'recharts';
+
 export default function OptionCalculation(props) {
 
     const [putOptionData, setPutOptionData] = useState({});
     const [callOptionData, setCallOptionData] = useState(0);
+    const [blackScholesPlot, setBlackScholesPlot] = useState([])
 
     const { rounding } = props;
 
@@ -34,6 +37,7 @@ export default function OptionCalculation(props) {
             BackendAPI.calculateBlackScholesOption(data).then(res => {
                 setPutOptionData(res.put);
                 setCallOptionData(res.call);
+                setBlackScholesPlot(res.plot_data);
             });
         }
 
@@ -50,6 +54,7 @@ export default function OptionCalculation(props) {
     return (
         <div ref={props.ref}>
             {props.calculated && 
+                <>
                 <TableContainer>
                     <Table className={classes.table} aria-label="simple table">
                         <TableHead>
@@ -67,33 +72,48 @@ export default function OptionCalculation(props) {
                             </TableRow>
                             <TableRow key="option-delta">
                                 <TableCell align="left"><strong>Delta</strong></TableCell>
-                                <TableCell align="right">{callOptionData.delta}</TableCell>
-                                <TableCell align="right">{putOptionData.delta}</TableCell>
+                                <TableCell align="right">{roundDecimals(callOptionData.delta, rounding)}</TableCell>
+                                <TableCell align="right">{roundDecimals(putOptionData.delta, rounding)}</TableCell>
                             </TableRow>
                             <TableRow key="option-gamma">
                                 <TableCell align="left"><strong>Gamma</strong></TableCell>
-                                <TableCell align="right">{callOptionData.gamma}</TableCell>
-                                <TableCell align="right">{putOptionData.gamma}</TableCell>
+                                <TableCell align="right">{roundDecimals(callOptionData.gamma, rounding)}</TableCell>
+                                <TableCell align="right">{roundDecimals(putOptionData.gamma, rounding)}</TableCell>
                             </TableRow>
                             <TableRow key="option-vega">
                                 <TableCell align="left"><strong>Vega</strong></TableCell>
-                                <TableCell align="right">{callOptionData.vega}</TableCell>
-                                <TableCell align="right">{putOptionData.vega}</TableCell>
+                                <TableCell align="right">{roundDecimals(callOptionData.vega, rounding)}</TableCell>
+                                <TableCell align="right">{roundDecimals(putOptionData.vega, rounding)}</TableCell>
                             </TableRow>
                             <TableRow key="option-theta">
                                 <TableCell align="left"><strong>Theta</strong></TableCell>
-                                <TableCell align="right">{callOptionData.theta}</TableCell>
-                                <TableCell align="right">{putOptionData.theta}</TableCell>
+                                <TableCell align="right">{roundDecimals(callOptionData.theta, rounding)}</TableCell>
+                                <TableCell align="right">{roundDecimals(putOptionData.theta, rounding)}</TableCell>
                             </TableRow>
                             <TableRow key="option-rho">
                                 <TableCell align="left"><strong>Rho</strong></TableCell>
-                                <TableCell align="right">{callOptionData.rho}</TableCell>
-                                <TableCell align="right">{putOptionData.rho}</TableCell>
+                                <TableCell align="right">{roundDecimals(callOptionData.rho, rounding)}</TableCell>
+                                <TableCell align="right">{roundDecimals(putOptionData.rho, rounding)}</TableCell>
                             </TableRow>
-
                         </TableBody>
                     </Table>
                 </TableContainer>
+            <br/>
+            <ResponsiveContainer width="100%" height={600}>
+                <LineChart
+                    data={blackScholesPlot}
+                    margin={{ top: 5, right: 20, left: 10, bottom: 20 }}
+                >
+                    <CartesianGrid strokeDasharray="1 1" />
+                    <XAxis dataKey="price" padding={{ bottom: 20 }} tickSize={5} label="Price" tickMargin={30}/>
+                    <YAxis label="Fair Value" padding={{ right: 10 }} tickSize={5} tickMargin={30}/>
+                    <Tooltip />
+                    <Legend verticalAlign="top" height={36}/>
+                    <Line type="monotone" dataKey="call_price" label="Call Option Fair Value" stroke="#27ae60" strokeWidth={2} dot={false} legendType="line"/>
+                    <Line type="monotone" dataKey="put_price" label="Put Option Fair Value" stroke="#e74c3c" strokeWidth={2} dot={false} legendType="line"/>
+                </LineChart>
+            </ResponsiveContainer>
+            </>
             }
         </div>
     );
