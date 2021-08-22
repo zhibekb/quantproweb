@@ -22,7 +22,19 @@ const BackendAPI = {
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify(data)
         }).then(res => res.json());
+    },
+
+    calculateMonteCarloOption: function(data) {
+      return fetch(
+        API_URL + "/option/calculator/monte-carlo",
+        {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(data)
+        }).then(res => res.json());
     }
+
 }
+
 
 export default BackendAPI;

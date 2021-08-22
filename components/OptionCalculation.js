@@ -1,32 +1,37 @@
 import { useEffect, useState } from "react";
-import { makeStyles } from '@material-ui/core/styles';
 
 import BackendAPI from "../BackendAPI"
 
-import { roundDecimals } from "../lib/util"
+import { AppBar, Box, Tabs, Tab, Typography, Grid, LinearProgress} from '@material-ui/core';
 
-import Table from '@material-ui/core/Table';
-import Grid from '@material-ui/core/Grid';
-import TableBody from '@material-ui/core/TableBody';
-import TableCell from '@material-ui/core/TableCell';
-import TableContainer from '@material-ui/core/TableContainer';
-import TableHead from '@material-ui/core/TableHead';
-import TableRow from '@material-ui/core/TableRow';
-import Paper from '@material-ui/core/Paper';
+import TabPanel from "./TabPanel"
+import OptionDataTable from "./OptionDataTable"
 
+import SwipeableViews from 'react-swipeable-views';
 
 import { XAxis, YAxis, Legend, Tooltip, Line, LineChart, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 export default function OptionCalculation(props) {
 
-    const [putOptionData, setPutOptionData] = useState({});
-    const [callOptionData, setCallOptionData] = useState({});
+    const [blkSData, setBlackScholesData] = useState({});
     const [blackScholesPlot, setBlackScholesPlot] = useState([])
 
-    const { rounding } = props;
+    const [mCarloData, setMonteCarloData] = useState({});
+    const [monteCarloPlot, setMonteCarloPlot] = useState([])
+
+    const [isLoading, setLoading] = useState(true);
+
+    const [activeTab, setActiveTab] = useState(0);
+
+    function a11yProps(index) {
+        return {
+            id: `full-width-tab-${index}`,
+            'aria-controls': `full-width-tabpanel-${index}`,
+        };
+    }
 
     useEffect(() => {
-        const data = {
+        const black_scholes_request = {
             "strikePrice": props.strikePrice,
             "tenor": props.tenor,
             "volatility": props.volatility,
@@ -35,85 +40,108 @@ export default function OptionCalculation(props) {
             "underlyingPrice": props.underlyingPrice
         }
 
-        BackendAPI.calculateBlackScholesOption(data).then(res => {
-            setPutOptionData(res.put);
-            setCallOptionData(res.call);
-            setBlackScholesPlot(res.plot_data);
+        const monte_carlo_request = {
+            ...black_scholes_request,
+            "timeSteps": props.timeSteps,
+            "numSimulations": props.numSimulations,
+            "deltaPrice": props.deltaPrice,
+            "deltaVolatility": props.deltaVolatility,
+            "deltaInterestRate": props.deltaInterestRate
+        }
+
+        const blkPromise = BackendAPI.calculateBlackScholesOption(black_scholes_request).then(res => {
+            setBlackScholesData(res);
+        });
+
+        const mcPromise = BackendAPI.calculateMonteCarloOption(monte_carlo_request).then(res => {
+            setMonteCarloData(res);
+        });
+
+        Promise.all([blkPromise, mcPromise]).then(() => {
+            setLoading(false);
         });
     }, [props]);
 
-    const useStyles = makeStyles({
-        table: {
-            minWidth: 200,
-        },
-    });
-
-    const classes = useStyles();
 
     return (
         <div ref={props.elemRef}>
-                <Grid container spacing={3}>
-                    <Grid item xs={12} sm={6}>
-                        <TableContainer>
-                            <Table className={classes.table} aria-label="Option Data Table" width={400}>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell width={100}></TableCell>
-                                        <TableCell align="right" width={100}><strong>CALL</strong></TableCell>
-                                        <TableCell align="right" width={100}><strong>PUT</strong></TableCell>
-                                    </TableRow>
-                                </TableHead>
+            {isLoading && <LinearProgress />}
 
-                                <TableBody>
-                                    <TableRow key="option-price">
-                                        <TableCell align="left"><strong>Option Price</strong></TableCell>
-                                        <TableCell align="right">{roundDecimals(callOptionData.price, rounding)}</TableCell>
-                                        <TableCell align="right">{roundDecimals(putOptionData.price, rounding)}</TableCell>
-                                    </TableRow>
-                                    <TableRow key="option-delta">
-                                        <TableCell align="left"><strong>Delta</strong></TableCell>
-                                        <TableCell align="right">{roundDecimals(callOptionData.delta, rounding)}</TableCell>
-                                        <TableCell align="right">{roundDecimals(putOptionData.delta, rounding)}</TableCell>
-                                    </TableRow>
-                                    <TableRow key="option-gamma">
-                                        <TableCell align="left"><strong>Gamma</strong></TableCell>
-                                        <TableCell align="right">{roundDecimals(callOptionData.gamma, rounding)}</TableCell>
-                                        <TableCell align="right">{roundDecimals(putOptionData.gamma, rounding)}</TableCell>
-                                    </TableRow>
-                                    <TableRow key="option-vega">
-                                        <TableCell align="left"><strong>Vega</strong></TableCell>
-                                        <TableCell align="right">{roundDecimals(callOptionData.vega, rounding)}</TableCell>
-                                        <TableCell align="right">{roundDecimals(putOptionData.vega, rounding)}</TableCell>
-                                    </TableRow>
-                                    <TableRow key="option-theta">
-                                        <TableCell align="left"><strong>Theta</strong></TableCell>
-                                        <TableCell align="right">{roundDecimals(callOptionData.theta, rounding)}</TableCell>
-                                        <TableCell align="right">{roundDecimals(putOptionData.theta, rounding)}</TableCell>
-                                    </TableRow>
-                                    <TableRow key="option-rho">
-                                        <TableCell align="left"><strong>Rho</strong></TableCell>
-                                        <TableCell align="right">{roundDecimals(callOptionData.rho, rounding)}</TableCell>
-                                        <TableCell align="right">{roundDecimals(putOptionData.rho, rounding)}</TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+            <AppBar position="static" color="transparent" elevation={0}>
+                <Tabs
+                    value={activeTab}
+                    onChange={(e, tab) => setActiveTab(tab)}
+                    indicatorColor="secondary"
+                    textColor="primary"
+                    variant="fullWidth"
+                >
+                    <Tab label="Black-Scholes" {...a11yProps(0)} />
+                    <Tab label="Monte-Carlo" {...a11yProps(1)} />
+                </Tabs>
+            </AppBar>
+            <SwipeableViews
+                axis="x"
+                index={activeTab}
+                onChangeIndex={setActiveTab}
+            >
+                <TabPanel value={activeTab} index={0}>
+                    <Grid container spacing={3}>
+                        <Grid item xs={12} sm={12}>
+                            {!isLoading &&
+                                <OptionDataTable
+                                    putOptionData={blkSData.put}
+                                    callOptionData={blkSData.call}
+                                    rounding={props.rounding} />}
+                        </Grid>
+                        <Grid item xs={12} sm={12}>
+                            {!isLoading &&
+                                <ResponsiveContainer height={400} width='100%'>
+                                    <LineChart
+                                        data={blkSData.plot_data}
+                                        margin={{ top: 5, right: 20, left: 10, bottom: 20 }}
+                                    >
+                                        <XAxis dataKey="price" padding={{ bottom: 20 }} tickSize={5} label="Underlying Price" tickMargin={30} />
+                                        <YAxis padding={{ right: 10 }} tickSize={2} tickMargin={5} label={{ value: 'Option Value', angle: -90, position: 'insideLeft' }} />
+                                        <Legend verticalAlign="top" iconType="circle"/>
+                                        <Tooltip />
+                                        <Line type="monotone" name="Call Option" dataKey="call_price" stroke="#27ae60" strokeWidth={2} dot={false} legendType="line" />
+                                        <Line type="monotone" name="Put Option" dataKey="put_price" stroke="#e74c3c" strokeWidth={2} dot={false} legendType="line" />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            }
+                        </Grid>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                            <LineChart
-                                data={blackScholesPlot}
-                                width={600}
-                                height={400}
-                                margin={{ top: 5, right: 20, left: 10, bottom: 20 }}
-                            >
-                                <XAxis dataKey="price" padding={{ bottom: 20 }} tickSize={5} label="Underlying Price" tickMargin={30} />
-                                <YAxis padding={{ right: 10 }} tickSize={5} tickMargin={30} />
-                                <Tooltip />
-                                <Line type="monotone" dataKey="call_price" label="Call Option Fair Value" stroke="#27ae60" strokeWidth={2} dot={false} legendType="line" />
-                                <Line type="monotone" dataKey="put_price" label="Put Option Fair Value" stroke="#e74c3c" strokeWidth={2} dot={false} legendType="line" />
-                            </LineChart>
+                </TabPanel>
+                <TabPanel value={activeTab} index={1}>
+                    <Grid container spacing={3}>
+                        <Grid item xs={12} sm={12}>
+                            {!isLoading &&
+                                <OptionDataTable
+                                    putOptionData={mCarloData.put}
+                                    callOptionData={mCarloData.call}
+                                    rounding={props.rounding} />}
+                        </Grid>
+                        <Grid item xs={12} sm={12}>
+                            {!isLoading &&
+                                <ResponsiveContainer height={400} width='100%'>
+                                    <LineChart
+                                        data={mCarloData.plot_data}
+                                        margin={{ top: 5, right: 20, left: 10, bottom: 20 }}
+                                    >
+                                        <Legend verticalAlign="top" iconType="circle"/>
+                                        <XAxis dataKey="price" padding={{ bottom: 20 }} tickSize={2} label="Underlying Price" tickMargin={30} />
+                                        <YAxis padding={{ right: 10 }} tickSize={2} tickMargin={5} label={{ value: 'Option Value', angle: -90, position: 'insideLeft' }} />
+                                        <Tooltip />
+                                        <Line type="monotone" name="Call Option" dataKey="call_price" stroke="#27ae60" strokeWidth={2} dot={false} legendType="line" />
+                                        <Line type="monotone" name="Put Option" dataKey="put_price" stroke="#e74c3c" strokeWidth={2} dot={false} legendType="line" />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            }
+                        </Grid>
                     </Grid>
-            </Grid>
-        </div>
+                </TabPanel>
+            </SwipeableViews >
+
+        </div >
     );
 }

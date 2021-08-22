@@ -1,8 +1,19 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Button,
+    Divider,
+    Grid,
+    LinearProgress,
+    TextField,
+    Typography,
+    FormHelperText,
+    createStyles,
+    makeStyles
+} from '@material-ui/core';
 
-import { AppBar, Button, Backdrop, Divider, Grid, LinearProgress, CircularProgress, Tabs, Tab, TextField, createStyles, makeStyles } from '@material-ui/core';
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 
 import { KeyboardDatePicker } from "@material-ui/pickers";
 import { useState, useEffect, useRef } from 'react';
@@ -18,8 +29,6 @@ import DateFnsUtils from '@date-io/date-fns';
 
 import { roundDecimals } from "../lib/util"
 
-import TabPanel from "./TabPanel"
-
 const useStyles = makeStyles((theme) =>
     createStyles({
         root: {
@@ -27,15 +36,12 @@ const useStyles = makeStyles((theme) =>
                 margin: theme.spacing(3),
             },
         },
+        heading: {
+            fontSize: theme.typography.pxToRem(15),
+            fontWeight: theme.typography.fontWeightRegular,
+        },
     }),
 );
-
-function a11yProps(index) {
-    return {
-      id: `simple-tab-${index}`,
-      'aria-controls': `simple-tabpanel-${index}`,
-    };
-}
 
 export default function OptionPriceCalculator() {
     const classes = useStyles();
@@ -53,8 +59,15 @@ export default function OptionPriceCalculator() {
     const [symbolsLoaded, setSymbolsLoaded] = useState(true);
     const [rounding, setRounding] = useState(2);
 
-    const [calculated, setCalculated] = useState(false);
+    const [timeSteps, setTimeSteps] = useState(100);
 
+    const [numSimulations, setNumSimulations] = useState(1000);
+
+    const [deltaPrice, setDeltaPrice] = useState(0.001);
+    const [deltaVolatility, setDeltaVolatility] = useState(0.001);
+    const [deltaInterestRate, setDeltaInterestRate] = useState(0.001);
+
+    const [calculated, setCalculated] = useState(false);
 
     useEffect(() => {
         const tenorMillis = expiryDate - Date.now();
@@ -83,34 +96,36 @@ export default function OptionPriceCalculator() {
             setVolatility("")
         } else {
             setLoading(true);
-            BackendAPI.getTickerLastClose(symbol)
-                .then(res => {
-                    setPrice(roundDecimals(res.close, 2));
-                    setDividendYield(roundDecimals(res.dividendYield * 100, 2));
-                })
-                .finally(() => setLoading(false));
 
-            BackendAPI.getTickerVolatility(symbol).then(res => {
-                setVolatility(roundDecimals(res.volatility * 100, 2));
-            });
+            Promise.all(
+                [
+                    BackendAPI.getTickerLastClose(symbol)
+                        .then(res => {
+                            setPrice(roundDecimals(res.close, 2));
+                            setDividendYield(roundDecimals(res.dividendYield * 100, 2));
+                        }),
+                    BackendAPI.getTickerVolatility(symbol).then(res => {
+                        setVolatility(roundDecimals(res.volatility * 100, 2));
+                    })
+                ]
+            ).then(() => setLoading(false));
         }
     }, [symbol]);
 
-    useEffect(() => {
-        setCalculated(false);
-    }, [expiryDate, symbol, price, dividendYield, strikePrice, tenor]);
+    const onSubmit = (event) => {
+        console.log("Submit");
+        setCalculated(true);
+        event.preventDefault();
+    };
 
     const resultRef = useRef(null);
 
-    const [tab, setTab] = useState(0);
-
     return (
         <>
-            <form className={classes.root} noValidate autoComplete="off">
+            <form className={classes.root} noValidate autoComplete="off" onSubmit={onSubmit}>
                 {isLoading &&
                     <LinearProgress />
                 }
-
                 <Grid container spacing={3}>
                     <Grid item xs={12} sm={12}>
                         <Autocomplete
@@ -118,6 +133,7 @@ export default function OptionPriceCalculator() {
                             options={symbols}
                             getOptionLabel={(option) => option.symbol + " (" + option.name + ", " + option.currency + ")"}
                             fullWidth
+                            helperText="Helper Text"
                             onChange={(event, option) => {
                                 if (option === null) {
                                     setSymbol("");
@@ -128,7 +144,6 @@ export default function OptionPriceCalculator() {
                             renderInput={(params) => <TextField {...params} label="Symbol" placeholder="AAPL" variant="outlined" />}
                         />
                     </Grid>
-
                     <Grid item xs={12} sm={6}>
                         <TextField
                             label="Strike Price"
@@ -141,7 +156,6 @@ export default function OptionPriceCalculator() {
                             required />
 
                     </Grid>
-
                     <Grid item xs={12} sm={6}>
                         <MuiPickersUtilsProvider utils={DateFnsUtils}>
                             <KeyboardDatePicker
@@ -229,44 +243,137 @@ export default function OptionPriceCalculator() {
                             helperText="How many decimal points to use."
                             required />
                     </Grid>
+                    <Grid item xs={12} sm={12}>
+                        <Divider />
+                    </Grid>
+
+                    <Grid item xs={12} sm={12}>
+                        <Accordion elevation={0}>
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon />}
+                                aria-controls="panel1a-content"
+                                id="monte-carlo-params"
+                            >
+                                <Typography className={classes.heading}>Monte-Carlo Simulation Parameters</Typography>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Grid container spacing={3}>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            label="Time Steps"
+                                            type="number"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={timeSteps}
+                                            InputProps={{
+                                                inputProps: {
+                                                    min: 10
+                                                }
+                                            }}
+                                            onChange={(e) => setTimeSteps(e.target.value)}
+                                            helperText="Time steps. Default is 100. Minimum is 10 steps."
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            label="Number of Simulations"
+                                            type="number"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={numSimulations}
+                                            InputProps={{
+                                                inputProps: {
+                                                    min: 10,
+                                                    max: 5000
+                                                }
+                                            }}
+                                            onChange={(e) => setNumSimulations(e.target.value)}
+                                            helperText="The number of simulations. By default 1000."
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            label="Delta S"
+                                            type="number"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={deltaPrice}
+                                            InputProps={{
+                                                inputProps: {
+                                                    min: 0.000001
+                                                }
+                                            }}
+                                            onChange={(e) => setDeltaPrice(e.target.value)}
+                                            helperText="Underlying Stock Price Step Size. Default is 0.001."
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            label="Delta Sigma"
+                                            type="number"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={deltaVolatility}
+                                            InputProps={{
+                                                inputProps: {
+                                                    min: 0.000001
+                                                }
+                                            }}
+                                            onChange={(e) => setDeltaVolatility(e.target.value)}
+                                            helperText="Volatility Step Size. Default is 0.001."
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            label="Delta r (interest rate)"
+                                            type="number"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={deltaInterestRate}
+                                            InputProps={{
+                                                inputProps: {
+                                                    min: 0.000001
+                                                }
+                                            }}
+                                            onChange={(e) => setDeltaInterestRate(e.target.value)}
+                                            helperText="Interest Rate Step Size. Default is 0.001"
+                                        />
+                                    </Grid>
+                                </Grid>
+                            </AccordionDetails>
+                        </Accordion>
+                    </Grid>
                 </Grid>
+
+
                 <br />
                 <br />
                 <div align="center">
                     <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => setCalculated(true)}>Calculate</Button>
+                        variant="contained"
+                        type="submit"
+                        color="secondary">Calculate</Button>
                 </div>
             </form>
 
-            { calculated && 
-                <>
-                    <AppBar position="static" color="transparent" width="100%">
-                        <Tabs value={tab} onChange={(event, value) => setTab(value)} aria-label="simple tabs example">
-                            <Tab label="Item One" {...a11yProps(0)} />
-                            <Tab label="Item Two" {...a11yProps(1)} />
-                            <Tab label="Item Three" {...a11yProps(2)} />
-                        </Tabs>
-                    </AppBar>
-                    <TabPanel value={tab} index={0}>
-                        <OptionCalculation
-                            elemRef={resultRef}
-                            rounding={rounding}
-                            strikePrice={strikePrice}
-                            underlyingPrice={price}
-                            volatility={volatility}
-                            tenor={tenor}
-                            dividendYield={dividendYield}
-                            interestRate={interestRate} />
-                    </TabPanel>
-                    <TabPanel value={tab} index={1}>
-                        Item Two
-                    </TabPanel>
-                    <TabPanel value={tab} index={2}>
-                        Item Three
-                    </TabPanel>
-                </>
+            <br />
+            <Divider />
+
+            {calculated &&
+                <OptionCalculation
+                    elemRef={resultRef}
+                    rounding={rounding}
+                    strikePrice={strikePrice}
+                    underlyingPrice={price}
+                    volatility={volatility}
+                    tenor={tenor}
+                    dividendYield={dividendYield}
+                    interestRate={interestRate}
+                    timeSteps={timeSteps}
+                    numSimulations={numSimulations}
+                    deltaPrice={deltaPrice}
+                    deltaVolatility={deltaVolatility}
+                    deltaInterestRate={deltaInterestRate} />
             }
         </>
     )
