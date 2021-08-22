@@ -15,6 +15,8 @@ import {
 
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 
+import Alert from '@material-ui/lab/Alert';
+
 import { KeyboardDatePicker } from "@material-ui/pickers";
 import { useState, useEffect, useRef } from 'react';
 
@@ -27,7 +29,7 @@ import { MuiPickersUtilsProvider } from '@material-ui/pickers';
 
 import DateFnsUtils from '@date-io/date-fns';
 
-import { roundDecimals } from "../lib/util"
+import { roundDecimals, isPositiveNumber } from "../lib/util"
 
 const useStyles = makeStyles((theme) =>
     createStyles({
@@ -43,6 +45,35 @@ const useStyles = makeStyles((theme) =>
     }),
 );
 
+const validateData = (props) => {
+    const errors = []
+    if (!isPositiveNumber(props.strikePrice)) {
+        errors.push("Strike price can't be empty or non-positive")
+    }
+
+    if (!isPositiveNumber(props.tenor)) {
+        errors.push("Time to maturity can't be empty or non-positive")
+    }
+
+    if (!isPositiveNumber(props.volatility)) {
+        errors.push("Volatility can't be empty or non-positive")
+    }
+
+    if (!isPositiveNumber(props.price)) {
+        errors.push("Underlying Price can't be empty or non-positive")
+    }
+
+    if (!isPositiveNumber(props.interestRate)) {
+        errors.push("Interest Rate can't be empty or non-positive")
+    }
+
+    if (!isPositiveNumber(props.dividendYield)) {
+        errors.push("Interest Rate can't be empty or non-positive")
+    }
+
+    return errors;
+};
+
 export default function OptionPriceCalculator() {
     const classes = useStyles();
 
@@ -54,7 +85,7 @@ export default function OptionPriceCalculator() {
     const [price, setPrice] = useState("");
     const [symbols, setSymbols] = useState([]);
     const [isLoading, setLoading] = useState(true);
-    const [interestRate, setInterestRate] = useState(true);
+    const [interestRate, setInterestRate] = useState("");
     const [dividendYield, setDividendYield] = useState("");
     const [symbolsLoaded, setSymbolsLoaded] = useState(true);
     const [rounding, setRounding] = useState(2);
@@ -68,6 +99,9 @@ export default function OptionPriceCalculator() {
     const [deltaInterestRate, setDeltaInterestRate] = useState(0.001);
 
     const [calculated, setCalculated] = useState(false);
+    const [isFormValid, setFormValid] = useState(true);
+
+    const [validationErrors, setValidationErrors ] = useState([]);
 
     useEffect(() => {
         const tenorMillis = expiryDate - Date.now();
@@ -89,6 +123,30 @@ export default function OptionPriceCalculator() {
         setSymbolsLoaded(true);
     }, [symbolsLoaded]);
 
+    const checkFormValid = (propagate) => {
+        const errors = validateData({ 
+                    strikePrice, 
+                    volatility, 
+                    dividendYield, 
+                    interestRate, 
+                    tenor,
+                    price });
+
+        if (propagate) {
+            setValidationErrors(errors);
+        }
+
+        
+
+        return errors.length == 0
+    };
+
+    useEffect(() => {
+        setValidationErrors([]);
+        setFormValid(checkFormValid(false));
+
+    }, [strikePrice, volatility, dividendYield, interestRate, tenor, price]);
+
     useEffect(() => {
         if (symbol == "") {
             setPrice("");
@@ -103,6 +161,8 @@ export default function OptionPriceCalculator() {
                         .then(res => {
                             setPrice(roundDecimals(res.close, 2));
                             setDividendYield(roundDecimals(res.dividendYield * 100, 2));
+                        }).catch((error) => {
+                            console.log(error);
                         }),
                     BackendAPI.getTickerVolatility(symbol).then(res => {
                         setVolatility(roundDecimals(res.volatility * 100, 2));
@@ -113,9 +173,10 @@ export default function OptionPriceCalculator() {
     }, [symbol]);
 
     const onSubmit = (event) => {
-        console.log("Submit");
-        setCalculated(true);
         event.preventDefault();
+        if (checkFormValid(true)) {
+            setCalculated(true);
+        }
     };
 
     const resultRef = useRef(null);
@@ -126,6 +187,7 @@ export default function OptionPriceCalculator() {
                 {isLoading &&
                     <LinearProgress />
                 }
+                { validationErrors.map(e => (<Alert severity="error">{e}</Alert>)) }
                 <Grid container spacing={3}>
                     <Grid item xs={12} sm={12}>
                         <Autocomplete
@@ -365,6 +427,7 @@ export default function OptionPriceCalculator() {
                     rounding={rounding}
                     strikePrice={strikePrice}
                     underlyingPrice={price}
+                    enabled={isFormValid}
                     volatility={volatility}
                     tenor={tenor}
                     dividendYield={dividendYield}

@@ -1,5 +1,12 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+function handleErrors(response) {
+  if (!response.ok) {
+      throw response.json();
+  }
+  return response;
+}
+
 const BackendAPI = {
 
     getSymbols : function() {
@@ -21,7 +28,9 @@ const BackendAPI = {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify(data)
-        }).then(res => res.json());
+        })
+        .then(handleErrors)
+        .then(res => res.json());
     },
 
     calculateMonteCarloOption: function(data) {
@@ -31,7 +40,9 @@ const BackendAPI = {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify(data)
-        }).then(res => res.json());
+        })
+        .then(handleErrors)
+        .then(res => res.json());
     }
 
 }
